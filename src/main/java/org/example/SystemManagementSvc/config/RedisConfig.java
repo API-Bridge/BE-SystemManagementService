@@ -56,11 +56,16 @@ public class RedisConfig {
     @Bean
     public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory) {
         RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(Duration.ofMinutes(10))
-                .disableCachingNullValues();
+                .entryTtl(Duration.ofMinutes(10))  // 캐시 만료 시간: 10분 (API 데이터 실시간성 고려)
+                .disableCachingNullValues();       // null 값 캐싱 비활성화 (메모리 낭비 방지)
 
         return RedisCacheManager.builder(connectionFactory)
-                .cacheDefaults(config)
+                .cacheDefaults(config)  // 기본 캐시 설정 적용
                 .build();
+        
+        // 캐시 전략:
+        // - 짧은 TTL(10분): 외부 API 데이터의 실시간성 보장
+        // - 건강체크 결과 캐싱으로 네트워크 비용 절약
+        // - 대시보드 데이터 캐싱으로 성능 향상
     }
 }

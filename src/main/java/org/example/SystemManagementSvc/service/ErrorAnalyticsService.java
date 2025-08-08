@@ -58,51 +58,64 @@ public class ErrorAnalyticsService {
     /**
      * Mock 에러 통계 데이터 생성
      * TODO: 실제 Elasticsearch 쿼리로 대체
+     * 
+     * 실제 구현 시 Elasticsearch 쿼리 예시:
+     * - 시간 범위 필터: range query on @timestamp
+     * - 서비스별 그룹핑: terms aggregation on service.name
+     * - 에러 카운트: count aggregation
+     * - 에러 타입별 분석: terms aggregation on error.type
      */
     private List<ErrorStatistics> createMockErrorStatistics() {
         List<ErrorStatistics> mockData = new ArrayList<>();
         
+        // 각 서비스별로 실제 운영 환경에서 발생할 수 있는 대표적인 에러 패턴을 모사
+        
+        // 인증 서비스: 가장 많은 에러 발생 (입력값 검증 실패가 주요 원인)
         mockData.add(ErrorStatistics.builder()
             .serviceName("auth-service")
-            .totalErrorCount(150L)
-            .errorRate(5.2)
-            .mostFrequentErrorType("VALIDATION_ERROR")
+            .totalErrorCount(150L)  // 24시간 기준 에러 발생 횟수
+            .errorRate(5.2)         // 전체 요청 대비 에러 비율 (%)
+            .mostFrequentErrorType("VALIDATION_ERROR")  // 가장 빈번한 에러 타입
             .lastErrorTime(LocalDateTime.now().minusMinutes(10).format(ISO_FORMATTER))
-            .rank(1)
+            .rank(1)                // 에러 발생량 기준 순위
             .build());
             
+        // 결제 서비스: DB 연결 문제로 인한 에러가 주요 원인
         mockData.add(ErrorStatistics.builder()
             .serviceName("payment-service")
             .totalErrorCount(89L)
             .errorRate(3.1)
-            .mostFrequentErrorType("DATABASE_ERROR")
+            .mostFrequentErrorType("DATABASE_ERROR")  // DB 트랜잭션 실패, 연결 타임아웃 등
             .lastErrorTime(LocalDateTime.now().minusMinutes(25).format(ISO_FORMATTER))
             .rank(2)
             .build());
             
+        // 사용자 서비스: 외부 API 호출 시 네트워크 에러
         mockData.add(ErrorStatistics.builder()
             .serviceName("user-service")
             .totalErrorCount(45L)
             .errorRate(1.8)
-            .mostFrequentErrorType("NETWORK_ERROR")
+            .mostFrequentErrorType("NETWORK_ERROR")  // 외부 서비스 연동 실패
             .lastErrorTime(LocalDateTime.now().minusMinutes(45).format(ISO_FORMATTER))
             .rank(3)
             .build());
             
+        // 알림 서비스: 메시지 큐 처리 지연으로 인한 타임아웃
         mockData.add(ErrorStatistics.builder()
             .serviceName("notification-service")
             .totalErrorCount(32L)
             .errorRate(2.5)
-            .mostFrequentErrorType("TIMEOUT_ERROR")
+            .mostFrequentErrorType("TIMEOUT_ERROR")  // 메시지 브로커 연결 지연
             .lastErrorTime(LocalDateTime.now().minusHours(1).format(ISO_FORMATTER))
             .rank(4)
             .build());
             
+        // API 게이트웨이: 속도 제한으로 인한 에러 (비교적 안정적)
         mockData.add(ErrorStatistics.builder()
             .serviceName("api-gateway")
             .totalErrorCount(18L)
-            .errorRate(0.9)
-            .mostFrequentErrorType("RATE_LIMIT_ERROR")
+            .errorRate(0.9)         // 가장 낮은 에러율 (잘 관리되고 있음)
+            .mostFrequentErrorType("RATE_LIMIT_ERROR")  // 클라이언트 호출 제한 초과
             .lastErrorTime(LocalDateTime.now().minusHours(2).format(ISO_FORMATTER))
             .rank(5)
             .build());

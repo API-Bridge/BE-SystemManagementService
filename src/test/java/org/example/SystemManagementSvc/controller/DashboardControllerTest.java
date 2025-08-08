@@ -52,68 +52,76 @@ class DashboardControllerTest {
 
     @BeforeEach
     void setUp() {
-        // Mock data 준비
+        // 테스트용 Mock 데이터 준비 - 실제 서비스와 동일한 구조
         mockErrorRanking = List.of(
+            // 1순위: 인증 서비스 - 가장 많은 에러 발생 예상 패턴
             ErrorStatistics.builder()
                 .serviceName("auth-service")
-                .totalErrorCount(150L)
+                .totalErrorCount(150L)  // 테스트 예상 에러 수
                 .rank(1)
                 .errorRate(5.2)
                 .mostFrequentErrorType("VALIDATION_ERROR")
                 .build(),
+            // 2순위: 결제 서비스 - DB 관련 에러
             ErrorStatistics.builder()
                 .serviceName("payment-service")
-                .totalErrorCount(89L)
+                .totalErrorCount(89L)   // 두 번째로 많은 에러
                 .rank(2)
                 .errorRate(3.1)
                 .mostFrequentErrorType("DATABASE_ERROR")
                 .build()
         );
 
+        // API 호출 순위 Mock 데이터 - 주요 공공데이터 API
         mockApiCallRanking = List.of(
+            // 1순위: 날씨 API - 가장 빈번하게 호출되는 API
             ApiCallStatistics.builder()
                 .apiName("weather-api")
                 .apiProvider("기상청")
-                .totalCallCount(1250L)
-                .successCallCount(1200L)
-                .failureCallCount(50L)
-                .successRate(96.0)
-                .averageResponseTime(250.5)
+                .totalCallCount(1250L)        // 테스트 예상 호출 수
+                .successCallCount(1200L)      // 성공 호출 수
+                .failureCallCount(50L)        // 실패 호출 수
+                .successRate(96.0)            // 예상 성공률
+                .averageResponseTime(250.5)   // 평균 응답시간
                 .rank(1)
                 .build(),
+            // 2순위: 교통 API - 두 번째로 많이 호출되는 API
             ApiCallStatistics.builder()
                 .apiName("traffic-api")
                 .apiProvider("국토교통부")
-                .totalCallCount(890L)
+                .totalCallCount(890L)         // 날씨 API보다 적은 호출량
                 .successCallCount(850L)
                 .failureCallCount(40L)
                 .successRate(95.5)
-                .averageResponseTime(180.3)
+                .averageResponseTime(180.3)   // 날씨 API보다 빠른 응답
                 .rank(2)
                 .build()
         );
 
+        // 대시보드 전체 요약 데이터 (위 데이터들의 집계 결과)
         DashboardSummary summary = DashboardSummary.builder()
-            .totalErrors(239L)
-            .totalApiCalls(2140L)
-            .overallSuccessRate(95.8)
-            .activeServiceCount(2)
-            .monitoredApiCount(2)
-            .systemStatus("HEALTHY")
+            .totalErrors(239L)              // 전체 에러 수 (150 + 89 = 239)
+            .totalApiCalls(2140L)           // 전체 API 호출 수 (1250 + 890 = 2140)
+            .overallSuccessRate(95.8)       // 전체 성공률 (가중평균)
+            .activeServiceCount(2)          // 모니터링 중인 서비스 수
+            .monitoredApiCount(2)           // 모니터링 중인 API 수
+            .systemStatus("HEALTHY")       // 예상 시스템 상태 (에러율이 임계치 이하)
             .build();
 
+        // 분석 기간 정보 - 테스트에서는 고정된 시간 범위 사용
         AnalysisPeriod analysisPeriod = AnalysisPeriod.builder()
-            .startTime("2024-01-01T00:00:00")
-            .endTime("2024-01-02T00:00:00")
-            .durationHours(24L)
-            .description("최근 24시간")
+            .startTime("2024-01-01T00:00:00")  // 분석 시작 시각 (고정값)
+            .endTime("2024-01-02T00:00:00")    // 분석 종료 시각 (고정값)
+            .durationHours(24L)                // 분석 기간 (24시간)
+            .description("최근 24시간")         // 사용자에게 보여줄 설명
             .build();
 
+        // 최종 대시보드 응답 객체 - 모든 데이터를 통합
         mockDashboardResponse = DashboardResponse.builder()
-            .errorRanking(mockErrorRanking)
-            .apiCallRanking(mockApiCallRanking)
-            .summary(summary)
-            .analysisPeriod(analysisPeriod)
+            .errorRanking(mockErrorRanking)      // 에러 순위 데이터
+            .apiCallRanking(mockApiCallRanking)  // API 호출 순위 데이터
+            .summary(summary)                    // 전체 요약 데이터
+            .analysisPeriod(analysisPeriod)      // 분석 기간 정보
             .build();
     }
 

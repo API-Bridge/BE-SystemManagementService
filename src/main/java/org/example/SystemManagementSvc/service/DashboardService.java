@@ -72,25 +72,27 @@ public class DashboardService {
 
     /**
      * 대시보드 전체 통계 요약 계산
+     * 에러 데이터와 API 호출 데이터를 결합하여 전체적인 시스템 상태를 계산
      */
     private DashboardSummary calculateDashboardSummary(List<ErrorStatistics> errorRanking, 
                                                        List<ApiCallStatistics> apiCallRanking) {
         
-        // 총 에러 발생 횟수 계산
+        // 총 에러 발생 횟수 계산 - 모든 서비스의 에러 합계
         long totalErrors = errorRanking.stream()
             .mapToLong(ErrorStatistics::getTotalErrorCount)
             .sum();
         
-        // 총 API 호출 횟수 계산
+        // 총 API 호출 횟수 계산 - 모든 외부 API의 호출 합계
         long totalApiCalls = apiCallRanking.stream()
             .mapToLong(ApiCallStatistics::getTotalCallCount)
             .sum();
         
-        // 전체 성공률 계산 (가중 평균)
+        // 전체 성공률 계산 - 각 API의 호출량에 비례한 가중평균
+        // 예: API A(100회, 95%), API B(200회, 90%) → (100*95 + 200*90) / 300 = 91.67%
         double overallSuccessRate = apiCallRanking.isEmpty() ? 0.0 : 
             apiCallRanking.stream()
-                .mapToDouble(api -> api.getSuccessRate() * api.getTotalCallCount())
-                .sum() / totalApiCalls;
+                .mapToDouble(api -> api.getSuccessRate() * api.getTotalCallCount())  // 호출량 * 성공률
+                .sum() / totalApiCalls;  // 총 호출량으로 나누기
         
         // 시스템 상태 결정
         String systemStatus = determineSystemStatus(errorRanking, apiCallRanking, overallSuccessRate);
@@ -107,29 +109,31 @@ public class DashboardService {
 
     /**
      * 시스템 전체 상태 결정
+     * 성공률과 에러 발생량을 기준으로 CRITICAL/WARNING/HEALTHY 상태 결정
      */
     private String determineSystemStatus(List<ErrorStatistics> errorRanking, 
                                        List<ApiCallStatistics> apiCallRanking, 
                                        double overallSuccessRate) {
         
-        // 임계치 정의
-        final double CRITICAL_SUCCESS_RATE = 90.0;
-        final double WARNING_SUCCESS_RATE = 95.0;
-        final long CRITICAL_ERROR_THRESHOLD = 1000;
-        final long WARNING_ERROR_THRESHOLD = 500;
+        // 시스템 상태 판단 임계치 정의
+        final double CRITICAL_SUCCESS_RATE = 90.0;   // 90% 미만시 CRITICAL
+        final double WARNING_SUCCESS_RATE = 95.0;    // 95% 미만시 WARNING
+        final long CRITICAL_ERROR_THRESHOLD = 1000;  // 1000개 이상 에러시 CRITICAL
+        final long WARNING_ERROR_THRESHOLD = 500;    // 500개 이상 에러시 WARNING
         
-        // 가장 많은 에러 발생 서비스의 에러 수
+        // 가장 많은 에러 발생 서비스의 에러 수 (순위 1위 서비스)
+        // errorRanking은 이미 에러 발생량 내림차순으로 정렬되어 있음
         long maxErrors = errorRanking.isEmpty() ? 0 : 
             errorRanking.get(0).getTotalErrorCount();
         
-        // Critical 조건 체크
+        // Critical 조건 체크 - 심각한 시스템 문제 상황
         if (overallSuccessRate < CRITICAL_SUCCESS_RATE || maxErrors > CRITICAL_ERROR_THRESHOLD) {
-            return "CRITICAL";
+            return "CRITICAL";  // 즉시 대응 필요
         }
         
-        // Warning 조건 체크
+        // Warning 조건 체크 - 주의 관찰 필요 상황
         if (overallSuccessRate < WARNING_SUCCESS_RATE || maxErrors > WARNING_ERROR_THRESHOLD) {
-            return "WARNING";
+            return "WARNING";   // 모니터링 강화 필요
         }
         
         return "HEALTHY";
@@ -151,13 +155,14 @@ public class DashboardService {
 
     /**
      * 분석 기간 설명 생성
+     * 사용자가 이해하기 쉽도록 시간 단위를 자동으로 변환
      */
     private String createPeriodDescription(int hours) {
-        if (hours <= 1) return "최근 1시간";
-        if (hours <= 24) return "최근 " + hours + "시간";
-        if (hours <= 168) return "최근 " + (hours / 24) + "일";
-        if (hours <= 720) return "최근 " + (hours / 168) + "주";
-        return "최근 " + (hours / 720) + "개월";
+        if (hours <= 1) return "최근 1시간";           // 1시간 이하
+        if (hours <= 24) return "최근 " + hours + "시간";   // 24시간 이하 (시간 단위)
+        if (hours <= 168) return "최근 " + (hours / 24) + "일";  // 7일 이하 (일 단위)
+        if (hours <= 720) return "최근 " + (hours / 168) + "주";  // 30일 이하 (주 단위)
+        return "최근 " + (hours / 720) + "개월";               // 그 이상 (월 단위)
     }
 
     /**

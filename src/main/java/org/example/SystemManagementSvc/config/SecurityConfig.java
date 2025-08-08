@@ -30,7 +30,7 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
-@Profile("!dev")
+@Profile("!dev")  // dev 프로파일이 아닌 모든 환경에서 사용 (prod, staging 등)
 public class SecurityConfig {
 
     @Value("${auth0.audience}")
@@ -42,18 +42,21 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(AbstractHttpConfigurer::disable)
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .csrf(AbstractHttpConfigurer::disable)  // CSRF 비활성화 (JWT 사용으로 stateless)
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))  // 세션 사용 안함
             .authorizeHttpRequests(authz -> authz
-                .requestMatchers("/actuator/**").permitAll()
-                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                .requestMatchers("/api/v1/health").permitAll()
+                // 공개 엔드포인트 - 인증 불필요
+                .requestMatchers("/actuator/**").permitAll()  // Spring Boot Actuator 메트릭
+                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()  // API 문서
+                .requestMatchers("/api/v1/health").permitAll()  // 헬스체크
+                // 나머지 모든 요청은 JWT 토큰 인증 필요
                 .anyRequest().authenticated()
             )
+            // OAuth2 Resource Server 설정 - Auth0 JWT 토큰 검증
             .oauth2ResourceServer(oauth2 -> oauth2
                 .jwt(jwt -> jwt
-                    .decoder(jwtDecoder())
-                    .jwtAuthenticationConverter(jwtAuthenticationConverter())
+                    .decoder(jwtDecoder())  // JWT 디코더 (서명 검증 포함)
+                    .jwtAuthenticationConverter(jwtAuthenticationConverter())  // JWT를 Spring Security Authentication으로 변환
                 )
             );
 
@@ -62,10 +65,13 @@ public class SecurityConfig {
 
     @Bean
     public JwtDecoder jwtDecoder() {
+        // Auth0의 OIDC 엔드포인트에서 자동으로 JWT 디코더 생성
         NimbusJwtDecoder jwtDecoder = JwtDecoders.fromOidcIssuerLocation(issuer);
 
-        OAuth2TokenValidator<Jwt> audienceValidator = new AudienceValidator(audience);
-        OAuth2TokenValidator<Jwt> withIssuer = JwtValidators.createDefaultWithIssuer(issuer);
+        // JWT 토큰 검증자 설정
+        OAuth2TokenValidator<Jwt> audienceValidator = new AudienceValidator(audience);  // 사용자 정의 audience 검증
+        OAuth2TokenValidator<Jwt> withIssuer = JwtValidators.createDefaultWithIssuer(issuer);  // 기본 issuer 검증
+        // 여러 검증자를 결합 (issuer + audience + signature + expiry)
         OAuth2TokenValidator<Jwt> withAudience = new DelegatingOAuth2TokenValidator<>(withIssuer, audienceValidator);
 
         jwtDecoder.setJwtValidator(withAudience);
@@ -75,9 +81,10 @@ public class SecurityConfig {
 
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
+        // JWT에서 Spring Security 권한을 추출하는 컨버터
         JwtGrantedAuthoritiesConverter converter = new JwtGrantedAuthoritiesConverter();
-        converter.setAuthoritiesClaimName("permissions");
-        converter.setAuthorityPrefix("");
+        converter.setAuthoritiesClaimName("permissions");  // Auth0에서 사용하는 권한 claim 명
+        converter.setAuthorityPrefix("");  // Spring Security의 기본 "ROLE_" 접두사 제거
 
         JwtAuthenticationConverter jwtConverter = new JwtAuthenticationConverter();
         jwtConverter.setJwtGrantedAuthoritiesConverter(converter);
