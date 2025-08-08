@@ -1,0 +1,49 @@
+spring:
+  application:
+    name: systemmanagement-svc-test
+    
+  # 테스트용 H2 데이터베이스 설정
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+    
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    database-platform: org.hibernate.dialect.H2Dialect
+
+  # Redis 설정 비활성화
+  data:
+    redis:
+      url: redis://localhost:6379
+      timeout: 2000ms
+
+  # Kafka 설정 비활성화
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: systemmanagement-test-group
+    producer:
+      bootstrap-servers: localhost:9092
+
+# 로깅 설정
+logging:
+  level:
+    org.example.systemmanagementsvc: DEBUG
+    org.springframework: WARN
+    org.hibernate: WARN
+
+# 서버 설정
+server:
+  port: 0 # 랜덤 포트
+
+# 테스트용 설정 비활성화
+management:
+  endpoints:
+    enabled-by-default: false
+  health:
+    redis:
+      enabled: false
