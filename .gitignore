@@ -79,6 +79,7 @@ spring-shell.log
 ~/.classpath
 ~/.class
 
-# Monitoring
-.monitoring
+# Monitoring (exclude monitoring stack binaries and data)
+.monitoring/
 .monitoring/**
+!.monitoring/*.md
