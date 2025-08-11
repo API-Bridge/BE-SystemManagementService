@@ -7,10 +7,10 @@ spring:
   # JPA 설정 (Amazon Corretto 17 최적화)
   jpa:
     hibernate:
-      ddl-auto: ${DDL_AUTO:validate}
+      ddl-auto: ${DDL_AUTO:update}
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQLDialect
+        dialect: ${HIBERNATE_DIALECT:org.hibernate.dialect.MySQLDialect}
         format_sql: true
         use_sql_comments: true
         jdbc:
@@ -50,10 +50,10 @@ spring:
 
   # 데이터베이스 설정
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/aisvc?useSSL=false&serverTimezone=UTC}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/api_bridge_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf8mb4}
     username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:password}
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    password: ${DB_PASSWORD:12341234}
+    driver-class-name: ${DB_DRIVER:com.mysql.cj.jdbc.Driver}
     hikari:
       maximum-pool-size: 20
       minimum-idle: 5
@@ -65,8 +65,10 @@ spring:
       timeout: 2000ms
       port: ${REDIS_PORT:6379}
       host: ${REDIS_HOST:localhost}
+  server:
+    address:
 
-# Auth0 설정
+  # Auth0 설정
 auth0:
   issuerUri: ${AUTH0_ISSUER_URI:https://dev-your-domain.auth0.com/}
   audience: ${AUTH0_AUDIENCE:https://api.dev.yourservice.com}
@@ -78,6 +80,29 @@ aws:
     bucket: ${S3_BUCKET_NAME:your-bucket-name}
   secretsmanager:
     region: ${AWS_REGION:ap-northeast-2}
+  ses:
+    region: ${AWS_REGION:ap-northeast-2}
+    from-email: ${SES_FROM_EMAIL:noreply@apibridge.com}
+
+# Elasticsearch 설정 (ELK Stack)
+elasticsearch:
+  host: ${ELASTICSEARCH_HOST:localhost}
+  port: ${ELASTICSEARCH_PORT:9200}  
+  scheme: ${ELASTICSEARCH_SCHEME:http}
+  indices:
+    api-calls: ${ES_API_CALLS_INDEX:api-calls-*}
+    error-logs: ${ES_ERROR_LOGS_INDEX:error-logs-*}
+    
+# External API Health Check 설정
+healthcheck:
+  scheduler:
+    enabled: ${HEALTH_CHECK_ENABLED:true}
+    fixed-delay: ${HEALTH_CHECK_INTERVAL:120000}  # 2분마다 체크
+    initial-delay: ${HEALTH_CHECK_INITIAL_DELAY:30000}  # 30초 후 시작
+  parallel:
+    thread-pool-size: ${HEALTH_CHECK_THREADS:10}
+  cache:
+    unhealthy-ttl: ${UNHEALTHY_CACHE_TTL:180}  # 3분 TTL
 
 # Circuit Breaker 설정 (Resilience4j)
 resilience4j:

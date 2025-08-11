@@ -42,6 +42,17 @@ dependencies {
     implementation 'org.springframework.kafka:spring-kafka'                      // 이벤트 기반 통신
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'     // 캐싱
     
+    // Elasticsearch for ELK Stack integration
+    implementation 'org.elasticsearch.client:elasticsearch-rest-high-level-client:7.17.22'
+    implementation 'org.elasticsearch.client:elasticsearch-rest-client:7.17.22'
+    
+    // AWS SES for Email notifications
+    implementation 'software.amazon.awssdk:ses:2.28.6'
+    implementation 'software.amazon.awssdk:core:2.28.6'
+    
+    // HTTP Client for external API health checks
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'         // WebClient for async calls
+    
     // Monitoring & Observability
     implementation 'io.micrometer:micrometer-registry-prometheus'
     

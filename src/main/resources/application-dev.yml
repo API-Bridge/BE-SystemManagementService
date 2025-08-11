@@ -1,0 +1,73 @@
+# Development environment - simplified for initial testing
+spring:
+  # Development Database - H2 in-memory for quick testing
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        show_sql: true
+        format_sql: true
+  
+  # H2 Console for debugging
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings:
+        web-allow-others: true
+
+  # Disable Kafka for initial testing
+  kafka:
+    bootstrap-servers: "dummy://localhost:9092"
+    consumer:
+      auto-offset-reset: none
+    producer:
+      bootstrap-servers: "dummy://localhost:9092"
+
+# Disable external services for testing
+elasticsearch:
+  enabled: false
+
+aws:
+  enabled: false
+  ses:
+    mock-enabled: true  # Enable mock email service for dev
+
+# Mock email configuration for development
+email:
+  mock:
+    enabled: true
+    log-emails: true
+
+spring.autoconfigure.exclude:
+  - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+  - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+
+# Disable security for development
+management:
+  security:
+    enabled: false
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+
+# Disable health checks initially
+healthcheck:
+  scheduler:
+    enabled: false
+
+# Logging
+logging:
+  level:
+    org.example.SystemManagementSvc: DEBUG
+    org.springframework.security: INFO
+    root: INFO

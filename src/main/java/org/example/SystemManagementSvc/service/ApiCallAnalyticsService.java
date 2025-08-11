@@ -6,25 +6,25 @@ import org.example.SystemManagementSvc.dto.analytics.ApiCallStatistics;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
- * ELK 스택 기반 외부 API 호출 분석 서비스 (간소화 버전)
- * 실제 프로덕션에서는 Elasticsearch 연동을 통해 구현
+ * ELK 스택 기반 외부 API 호출 분석 서비스
+ * Elasticsearch와 연동하여 실제 API 호출 로그에서 통계 제공
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ApiCallAnalyticsService {
 
-    private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+    private final ElasticsearchService elasticsearchService;
 
     /**
      * 자주 호출되는 외부 API 순위를 계산
-     * 현재는 Mock 데이터로 구현되어 있으며, 실제로는 Elasticsearch에서 데이터를 조회해야 합니다.
+     * Elasticsearch에서 로그 데이터를 조회하여 실제 API 호출 통계를 제공
      *
      * @param startTime 분석 시작 시간
      * @param endTime   분석 종료 시간
@@ -38,108 +38,141 @@ public class ApiCallAnalyticsService {
             return Collections.emptyList();
         }
 
-        log.info("Generating API call ranking for period: {} to {}", startTime, endTime);
+        log.info("Generating API call ranking from Elasticsearch for period: {} to {}", startTime, endTime);
         
         try {
-            // Mock 데이터 생성 (실제로는 Elasticsearch 쿼리 결과)
-            List<ApiCallStatistics> mockData = createMockApiCallStatistics();
-            
-            // limit 적용
-            return mockData.stream()
-                .limit(limit)
-                .toList();
+            // Elasticsearch에서 실제 API 호출 통계 조회
+            return elasticsearchService.getApiCallStatistics(startTime, endTime, limit);
                 
         } catch (Exception e) {
-            log.error("Failed to generate API call analytics", e);
+            log.error("Failed to generate API call analytics from Elasticsearch", e);
             return Collections.emptyList();
         }
     }
 
     /**
-     * Mock API 호출 통계 데이터 생성
-     * TODO: 실제 Elasticsearch 쿼리로 대체
+     * 특정 API의 상세 호출 분석
      * 
-     * 실제 구현 시 Elasticsearch 쿼리 예시:
-     * - API 별 그룹핑: terms aggregation on api.name
-     * - 성공/실패 나누기: filter aggregation on response.status
-     * - 응답시간 통계: avg/max aggregation on response.time
-     * - 시간대별 추이: date_histogram aggregation
+     * @param apiName   분석할 API명
+     * @param startTime 분석 시작 시간
+     * @param endTime   분석 종료 시간
+     * @return 해당 API의 호출 통계
      */
-    private List<ApiCallStatistics> createMockApiCallStatistics() {
-        List<ApiCallStatistics> mockData = new ArrayList<>();
+    public ApiCallStatistics getApiCallDetail(String apiName, LocalDateTime startTime, LocalDateTime endTime) {
+        log.info("Getting API call details for: {} from {} to {}", apiName, startTime, endTime);
         
-        // 주요 공공데이터 API들의 실제 호출 패턴을 모사하여 생성
+        List<ApiCallStatistics> allStats = elasticsearchService.getApiCallStatistics(startTime, endTime, 100);
         
-        // 날씨 API: 가장 빈번하게 호출되는 API (실시간 날씨 정보 제공)
-        mockData.add(ApiCallStatistics.builder()
-            .apiName("weather-api")
-            .apiProvider("기상청")             // 공공데이터 제공처
-            .totalCallCount(1250L)        // 24시간 기준 총 호출 횟수
-            .successCallCount(1200L)      // 성공한 호출 횟수
-            .failureCallCount(50L)        // 실패한 호출 횟수
-            .successRate(96.0)            // 성공률 (%)
-            .averageResponseTime(250.5)   // 평균 응답시간 (ms)
-            .maxResponseTime(1500L)       // 최대 응답시간 (ms)
-            .lastCallTime(LocalDateTime.now().minusMinutes(5).format(ISO_FORMATTER))  // 마지막 호출 시각
-            .rank(1)                      // 호출량 기준 순위
-            .build());
-            
-        // 교통정보 API: 출퇴근 시간대에 호출량 증가
-        mockData.add(ApiCallStatistics.builder()
-            .apiName("traffic-api")
-            .apiProvider("국토교통부")       // TOPIS 등 교통정보 API
-            .totalCallCount(890L)
-            .successCallCount(850L)
-            .failureCallCount(40L)
-            .successRate(95.5)
-            .averageResponseTime(180.3)   // 비교적 빠른 응답속도
-            .maxResponseTime(2100L)       // 피크 시간대 지연 발생
-            .lastCallTime(LocalDateTime.now().minusMinutes(8).format(ISO_FORMATTER))
-            .rank(2)
-            .build());
-            
-        // 시설정보 API: 지역별 공공시설 정보 제공
-        mockData.add(ApiCallStatistics.builder()
-            .apiName("facility-api")
-            .apiProvider("서울시청")         // 지자체 열린데이터 포탈
-            .totalCallCount(456L)
-            .successCallCount(440L)
-            .failureCallCount(16L)
-            .successRate(96.5)            // 높은 성공률 유지
-            .averageResponseTime(320.1)   // 상대적으로 느린 응답 (데이터 량 많음)
-            .maxResponseTime(3200L)       // 대용량 데이터로 인한 지연
-            .lastCallTime(LocalDateTime.now().minusMinutes(15).format(ISO_FORMATTER))
-            .rank(3)
-            .build());
-            
-        // 뉴스 API: 주기적으로 호출되는 콘텐츠 API
-        mockData.add(ApiCallStatistics.builder()
-            .apiName("news-api")
-            .apiProvider("한국언론진흥재단")  // 언론진흥재단 BIG뉴스 API
-            .totalCallCount(234L)
-            .successCallCount(220L)
-            .failureCallCount(14L)
-            .successRate(94.0)            // 변동성이 있는 성공률
-            .averageResponseTime(450.8)   // 콘텐츠 처리로 인한 느린 응답
-            .maxResponseTime(4800L)       // 콘텐츠 양에 따른 지연 발생 가능
-            .lastCallTime(LocalDateTime.now().minusMinutes(30).format(ISO_FORMATTER))
-            .rank(4)
-            .build());
-            
-        // 대중교통 API: 가장 안정적인 API (성능도 우수)
-        mockData.add(ApiCallStatistics.builder()
-            .apiName("public-transport-api")
-            .apiProvider("국토교통부")       // 버스 지하철 실시간 정보
-            .totalCallCount(189L)         // 상대적으로 적은 호출량
-            .successCallCount(185L)
-            .failureCallCount(4L)         // 매우 낮은 실패율
-            .successRate(97.9)            // 가장 높은 성공률 (안정적인 인프라)
-            .averageResponseTime(150.2)   // 가장 빠른 평균 응답시간
-            .maxResponseTime(800L)        // 낮은 최대 응답시간 (안정적)
-            .lastCallTime(LocalDateTime.now().minusMinutes(12).format(ISO_FORMATTER))
-            .rank(5)
-            .build());
-            
-        return mockData;
+        return allStats.stream()
+            .filter(stat -> stat.getApiName().equals(apiName))
+            .findFirst()
+            .orElse(null);
+    }
+
+    /**
+     * API 제공업체별 호출 통계 분석
+     * 
+     * @param startTime 분석 시작 시간
+     * @param endTime   분석 종료 시간
+     * @return 제공업체별 호출량 집계
+     */
+    public Map<String, Long> getApiCallsByProvider(LocalDateTime startTime, LocalDateTime endTime) {
+        log.info("Analyzing API calls by provider from {} to {}", startTime, endTime);
+        
+        List<ApiCallStatistics> allStats = elasticsearchService.getApiCallStatistics(startTime, endTime, 50);
+        
+        return allStats.stream()
+            .collect(Collectors.groupingBy(
+                ApiCallStatistics::getApiProvider,
+                Collectors.summingLong(ApiCallStatistics::getTotalCallCount)
+            ));
+    }
+
+    /**
+     * 성능 문제가 있는 API 식별
+     * 평균 응답시간이 임계치를 초과하는 API들을 식별
+     * 
+     * @param startTime           분석 시작 시간
+     * @param endTime             분석 종료 시간
+     * @param responseTimeThreshold 응답시간 임계치 (ms)
+     * @return 성능 문제 API 리스트
+     */
+    public List<ApiCallStatistics> getSlowApis(LocalDateTime startTime, LocalDateTime endTime, double responseTimeThreshold) {
+        log.info("Identifying slow APIs with response time > {}ms", responseTimeThreshold);
+        
+        List<ApiCallStatistics> allStats = elasticsearchService.getApiCallStatistics(startTime, endTime, 50);
+        
+        return allStats.stream()
+            .filter(stat -> stat.getAverageResponseTime() > responseTimeThreshold)
+            .sorted((a, b) -> Double.compare(b.getAverageResponseTime(), a.getAverageResponseTime()))
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * 신뢰도가 낮은 API 식별
+     * 성공률이 임계치 미만인 API들을 식별
+     * 
+     * @param startTime           분석 시작 시간
+     * @param endTime             분석 종료 시간
+     * @param successRateThreshold 성공률 임계치 (%)
+     * @return 신뢰도가 낮은 API 리스트
+     */
+    public List<ApiCallStatistics> getUnreliableApis(LocalDateTime startTime, LocalDateTime endTime, double successRateThreshold) {
+        log.info("Identifying unreliable APIs with success rate < {}%", successRateThreshold);
+        
+        List<ApiCallStatistics> allStats = elasticsearchService.getApiCallStatistics(startTime, endTime, 50);
+        
+        return allStats.stream()
+            .filter(stat -> stat.getSuccessRate() < successRateThreshold)
+            .sorted((a, b) -> Double.compare(a.getSuccessRate(), b.getSuccessRate()))
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * API 호출량 트렌드 분석
+     * 시간대별 API 호출 패턴을 분석하여 피크 시간대 식별
+     * 
+     * @param hours 분석할 시간 범위 (시간 단위)
+     * @return API 호출량 통계
+     */
+    public List<ApiCallStatistics> getApiCallTrend(int hours) {
+        LocalDateTime endTime = LocalDateTime.now();
+        LocalDateTime startTime = endTime.minusHours(hours);
+        
+        log.info("Analyzing API call trend for last {} hours", hours);
+        
+        return elasticsearchService.getApiCallStatistics(startTime, endTime, 20);
+    }
+
+    /**
+     * 과도한 호출이 발생하고 있는 API 감지
+     * 호출량이 평균 대비 비정상적으로 높은 API들을 식별
+     * 
+     * @param startTime     분석 시작 시간
+     * @param endTime       분석 종료 시간
+     * @param thresholdMultiplier 평균 대비 배수 (예: 2.0 = 평균의 2배)
+     * @return 과도한 호출이 발생한 API 리스트
+     */
+    public List<ApiCallStatistics> getExcessiveCallApis(LocalDateTime startTime, LocalDateTime endTime, double thresholdMultiplier) {
+        log.info("Detecting excessive API calls with threshold multiplier: {}", thresholdMultiplier);
+        
+        List<ApiCallStatistics> allStats = elasticsearchService.getApiCallStatistics(startTime, endTime, 50);
+        
+        if (allStats.isEmpty()) {
+            return Collections.emptyList();
+        }
+        
+        // 평균 호출량 계산
+        double averageCallCount = allStats.stream()
+            .mapToLong(ApiCallStatistics::getTotalCallCount)
+            .average()
+            .orElse(0.0);
+        
+        double threshold = averageCallCount * thresholdMultiplier;
+        
+        return allStats.stream()
+            .filter(stat -> stat.getTotalCallCount() > threshold)
+            .sorted((a, b) -> Long.compare(b.getTotalCallCount(), a.getTotalCallCount()))
+            .collect(Collectors.toList());
     }
 }

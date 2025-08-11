@@ -78,3 +78,7 @@ spring-shell.log
 /build/test-results/
 ~/.classpath
 ~/.class
+
+# Monitoring
+.monitoring
+.monitoring/**
