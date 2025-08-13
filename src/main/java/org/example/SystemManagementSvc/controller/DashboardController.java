@@ -7,7 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import lombok.extern.slf4j.Slf4j;
 import org.example.SystemManagementSvc.dto.analytics.ApiCallStatistics;
 import org.example.SystemManagementSvc.dto.analytics.DashboardResponse;
@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * ELK 기반 시스템 분석 및 대시보드 API 컨트롤러
@@ -29,13 +30,21 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequestMapping("/dashboard")
-@RequiredArgsConstructor
 @Tag(name = "Dashboard Analytics", description = "ELK 기반 시스템 모니터링 및 분석 대시보드 API")
 public class DashboardController {
 
     private final DashboardService dashboardService;
-    private final ErrorAnalyticsService errorAnalyticsService;
-    private final ApiCallAnalyticsService apiCallAnalyticsService;
+    private final Optional<ErrorAnalyticsService> errorAnalyticsService;
+    private final Optional<ApiCallAnalyticsService> apiCallAnalyticsService;
+    
+    @Autowired
+    public DashboardController(DashboardService dashboardService,
+                             Optional<ErrorAnalyticsService> errorAnalyticsService,
+                             Optional<ApiCallAnalyticsService> apiCallAnalyticsService) {
+        this.dashboardService = dashboardService;
+        this.errorAnalyticsService = errorAnalyticsService;
+        this.apiCallAnalyticsService = apiCallAnalyticsService;
+    }
 
     @Operation(
         summary = "통합 대시보드 분석 데이터 조회",
@@ -98,7 +107,8 @@ public class DashboardController {
         LocalDateTime startTime = endTime.minusHours(hours);
         
         List<ErrorStatistics> errorRanking = errorAnalyticsService
-            .getServiceErrorRanking(startTime, endTime, limit);
+            .map(service -> service.getServiceErrorRanking(startTime, endTime, limit))
+            .orElse(List.of()); // Elasticsearch 비활성화 시 빈 리스트
         
         BaseResponse<List<ErrorStatistics>> response = BaseResponse.<List<ErrorStatistics>>builder()
             .success(true)
@@ -137,7 +147,8 @@ public class DashboardController {
         LocalDateTime startTime = endTime.minusHours(hours);
         
         List<ApiCallStatistics> apiCallRanking = apiCallAnalyticsService
-            .getApiCallRanking(startTime, endTime, limit);
+            .map(service -> service.getApiCallRanking(startTime, endTime, limit))
+            .orElse(List.of()); // Elasticsearch 비활성화 시 빈 리스트
         
         BaseResponse<List<ApiCallStatistics>> response = BaseResponse.<List<ApiCallStatistics>>builder()
             .success(true)

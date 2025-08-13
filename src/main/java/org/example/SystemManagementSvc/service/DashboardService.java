@@ -1,9 +1,11 @@
 package org.example.SystemManagementSvc.service;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.SystemManagementSvc.dto.analytics.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.Optional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -16,11 +18,17 @@ import java.util.List;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class DashboardService {
 
-    private final ErrorAnalyticsService errorAnalyticsService;
-    private final ApiCallAnalyticsService apiCallAnalyticsService;
+    private final Optional<ErrorAnalyticsService> errorAnalyticsService;
+    private final Optional<ApiCallAnalyticsService> apiCallAnalyticsService;
+    
+    @Autowired
+    public DashboardService(Optional<ErrorAnalyticsService> errorAnalyticsService,
+                          Optional<ApiCallAnalyticsService> apiCallAnalyticsService) {
+        this.errorAnalyticsService = errorAnalyticsService;
+        this.apiCallAnalyticsService = apiCallAnalyticsService;
+    }
     
     private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
 
@@ -45,11 +53,13 @@ public class DashboardService {
         try {
             // 에러 순위 분석
             List<ErrorStatistics> errorRanking = errorAnalyticsService
-                .getServiceErrorRanking(startTime, endTime, resultLimit);
+                .map(service -> service.getServiceErrorRanking(startTime, endTime, resultLimit))
+                .orElse(List.of()); // Elasticsearch 비활성화 시 빈 리스트
             
             // API 호출 순위 분석
             List<ApiCallStatistics> apiCallRanking = apiCallAnalyticsService
-                .getApiCallRanking(startTime, endTime, resultLimit);
+                .map(service -> service.getApiCallRanking(startTime, endTime, resultLimit))
+                .orElse(List.of()); // Elasticsearch 비활성화 시 빈 리스트
             
             // 전체 통계 요약 계산
             DashboardSummary summary = calculateDashboardSummary(errorRanking, apiCallRanking);

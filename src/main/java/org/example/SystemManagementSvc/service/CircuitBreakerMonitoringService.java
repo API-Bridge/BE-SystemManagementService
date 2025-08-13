@@ -1,10 +1,10 @@
 package org.example.SystemManagementSvc.service;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.SystemManagementSvc.dto.analytics.ApiCallStatistics;
 import org.example.SystemManagementSvc.event.model.CircuitBreakerEvent;
 import org.example.SystemManagementSvc.event.publisher.EventPublisher;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
@@ -26,13 +27,23 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class CircuitBreakerMonitoringService {
 
-    private final ApiCallAnalyticsService apiCallAnalyticsService;
+    private final Optional<ApiCallAnalyticsService> apiCallAnalyticsService;
     private final EventPublisher eventPublisher;
     private final RedisTemplate<String, Object> redisTemplate;
     private final AlertNotificationService alertNotificationService;
+    
+    @Autowired
+    public CircuitBreakerMonitoringService(Optional<ApiCallAnalyticsService> apiCallAnalyticsService,
+                                         EventPublisher eventPublisher,
+                                         RedisTemplate<String, Object> redisTemplate,
+                                         AlertNotificationService alertNotificationService) {
+        this.apiCallAnalyticsService = apiCallAnalyticsService;
+        this.eventPublisher = eventPublisher;
+        this.redisTemplate = redisTemplate;
+        this.alertNotificationService = alertNotificationService;
+    }
     
     // 임계치 설정
     @Value("${circuit-breaker.call-rate-threshold:1000}")
@@ -71,7 +82,9 @@ public class CircuitBreakerMonitoringService {
             LocalDateTime startTime = endTime.minusMinutes(monitoringWindowMinutes);
             
             // 최근 API 호출 통계 조회
-            List<ApiCallStatistics> recentStats = apiCallAnalyticsService.getApiCallRanking(startTime, endTime, 50);
+            List<ApiCallStatistics> recentStats = apiCallAnalyticsService
+                .map(service -> service.getApiCallRanking(startTime, endTime, 50))
+                .orElse(List.of()); // Elasticsearch 비활성화 시 빈 리스트
             
             // 각 API별로 서킷브레이커 상태 체크
             for (ApiCallStatistics stats : recentStats) {

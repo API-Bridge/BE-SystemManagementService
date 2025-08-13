@@ -91,6 +91,28 @@ public class HealthCheckResult {
     /** 추가 메타데이터 (JSON 형태로 저장) */
     @Column(name = "metadata", columnDefinition = "TEXT")
     private String metadata;
+    
+    /** 성공 여부 (계산된 필드) */
+    @Transient
+    private Boolean isSuccess;
+    
+    /** 추가 정보 (일시적 필드) */
+    @Transient
+    private String additionalInfo;
+    
+    /**
+     * Timeout 여부 조회
+     */
+    public Boolean isTimeout() {
+        return isTimeout;
+    }
+    
+    /**
+     * 추가 정보 설정
+     */
+    public void setAdditionalInfo(String additionalInfo) {
+        this.additionalInfo = additionalInfo;
+    }
 
     /** 엔티티 생성 일시 */
     @CreatedDate

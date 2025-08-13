@@ -4,16 +4,17 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.SystemManagementSvc.dto.analytics.ApiCallStatistics;
 import org.example.SystemManagementSvc.dto.analytics.ErrorStatistics;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -25,8 +26,18 @@ import java.util.concurrent.atomic.AtomicLong;
 public class PrometheusMetricsService {
 
     private final MeterRegistry meterRegistry;
-    private final ApiCallAnalyticsService apiCallAnalyticsService;
-    private final ErrorAnalyticsService errorAnalyticsService;
+    private final Optional<ApiCallAnalyticsService> apiCallAnalyticsService;
+    private final Optional<ErrorAnalyticsService> errorAnalyticsService;
+    
+    @Autowired
+    public PrometheusMetricsService(MeterRegistry meterRegistry,
+                                  Optional<ApiCallAnalyticsService> apiCallAnalyticsService,
+                                  Optional<ErrorAnalyticsService> errorAnalyticsService) {
+        this.meterRegistry = meterRegistry;
+        this.apiCallAnalyticsService = apiCallAnalyticsService;
+        this.errorAnalyticsService = errorAnalyticsService;
+        initializeMetrics();
+    }
     
     // 메트릭 저장용 맵
     private final Map<String, AtomicLong> serviceErrorCounts = new HashMap<>();
@@ -34,26 +45,20 @@ public class PrometheusMetricsService {
     private final Map<String, AtomicLong> apiSuccessCounts = new HashMap<>();
     
     // 카운터 메트릭들
-    private final Counter alertsProcessed;
-    private final Counter emailsSent;
-    private final Counter healthChecksTotal;
-    private final Counter healthChecksFailed;
+    private Counter alertsProcessed;
+    private Counter emailsSent;
+    private Counter healthChecksTotal;
+    private Counter healthChecksFailed;
     
     // 게이지 메트릭들
-    private final Gauge systemHealthStatus;
+    private Gauge systemHealthStatus;
     private final AtomicLong systemHealthValue = new AtomicLong(1); // 1=healthy, 0=unhealthy
     
     // 타이머 메트릭들
-    private final Timer alertProcessingTime;
-    private final Timer elasticsearchQueryTime;
+    private Timer alertProcessingTime;
+    private Timer elasticsearchQueryTime;
 
-    public PrometheusMetricsService(MeterRegistry meterRegistry, 
-                                   ApiCallAnalyticsService apiCallAnalyticsService,
-                                   ErrorAnalyticsService errorAnalyticsService) {
-        this.meterRegistry = meterRegistry;
-        this.apiCallAnalyticsService = apiCallAnalyticsService;
-        this.errorAnalyticsService = errorAnalyticsService;
-        
+    private void initializeMetrics() {
         // 카운터 메트릭 초기화
         this.alertsProcessed = Counter.builder("apibridge_alerts_processed_total")
             .description("Total number of alerts processed")
@@ -181,7 +186,9 @@ public class PrometheusMetricsService {
             LocalDateTime endTime = LocalDateTime.now();
             LocalDateTime startTime = endTime.minusHours(1); // 최근 1시간
             
-            List<ErrorStatistics> errorStats = errorAnalyticsService.getServiceErrorRanking(startTime, endTime, 20);
+            List<ErrorStatistics> errorStats = errorAnalyticsService
+                .map(service -> service.getServiceErrorRanking(startTime, endTime, 20))
+                .orElse(List.of()); // Elasticsearch 비활성화 시 빈 리스트
             
             for (ErrorStatistics stat : errorStats) {
                 String serviceName = stat.getServiceName();
@@ -224,7 +231,9 @@ public class PrometheusMetricsService {
             LocalDateTime endTime = LocalDateTime.now();
             LocalDateTime startTime = endTime.minusHours(1); // 최근 1시간
             
-            List<ApiCallStatistics> apiStats = apiCallAnalyticsService.getApiCallRanking(startTime, endTime, 20);
+            List<ApiCallStatistics> apiStats = apiCallAnalyticsService
+                .map(service -> service.getApiCallRanking(startTime, endTime, 20))
+                .orElse(List.of()); // Elasticsearch 비활성화 시 빈 리스트
             
             for (ApiCallStatistics stat : apiStats) {
                 String apiName = stat.getApiName();

@@ -3,6 +3,7 @@ package org.example.SystemManagementSvc.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.SystemManagementSvc.dto.analytics.ErrorStatistics;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -16,6 +17,7 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "elasticsearch.enabled", havingValue = "true", matchIfMissing = false)
 public class ErrorAnalyticsService {
 
     private final ElasticsearchService elasticsearchService;

@@ -33,6 +33,12 @@ public interface ExternalApiRepository extends JpaRepository<ExternalApi, String
      * 특정 도메인의 API들만 필터링
      */
     List<ExternalApi> findByApiDomain(ExternalApi.ApiDomain domain);
+    
+    /**
+     * 도메인별 활성화된 API 목록 조회
+     * ApiStatusManager에서 사용
+     */
+    List<ExternalApi> findByApiDomainAndApiEffectivenessTrue(ExternalApi.ApiDomain domain);
 
     /**
      * 제공업체별 API 목록 조회
@@ -74,6 +80,12 @@ public interface ExternalApiRepository extends JpaRepository<ExternalApi, String
      * 특정 키워드를 가진 API 목록 조회
      */
     List<ExternalApi> findByApiKeyword(ExternalApi.ApiKeyword keyword);
+    
+    /**
+     * 특정 키워드를 가진 활성화된 API 목록 조회
+     * ApiStatusManager에서 사용
+     */
+    List<ExternalApi> findByApiKeywordAndApiEffectivenessTrue(ExternalApi.ApiKeyword keyword);
 
     /**
      * 도메인과 키워드 조합으로 API 조회
@@ -101,6 +113,12 @@ public interface ExternalApiRepository extends JpaRepository<ExternalApi, String
      */
     @Query("SELECT COUNT(a) FROM ExternalApi a WHERE a.apiEffectiveness = true")
     long countActiveApis();
+    
+    /**
+     * 활성화된 API 수 조회 (Spring Data JPA 네이밍 컨벤션)
+     * ApiStatusManager에서 사용
+     */
+    long countByApiEffectivenessTrue();
 
     /**
      * 비활성화된 API 수 조회
