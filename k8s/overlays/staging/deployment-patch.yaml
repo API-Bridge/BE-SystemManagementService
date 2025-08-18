@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: system-management-service
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+      - name: system-management-service
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "kubernetes,staging"
+        - name: LOGGING_LEVEL_ORG_EXAMPLE_SYSTEMMANAGEMENTSERVICE
+          value: "DEBUG"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"

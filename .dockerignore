@@ -1,0 +1,53 @@
+# Build artifacts
+build/
+target/
+*.jar
+*.war
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Version control
+.git/
+.gitignore
+
+# Documentation
+*.md
+docs/
+
+# CI/CD
+.github/
+jenkins/
+ci/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Node modules (if any)
+node_modules/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Test files
+src/test/
+test/
+
+# Gradle cache (will be recreated in container)
+.gradle/
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore

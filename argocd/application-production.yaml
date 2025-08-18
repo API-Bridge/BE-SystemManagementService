@@ -1,0 +1,66 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: system-management-service-production
+  namespace: argocd
+  labels:
+    app: system-management-service
+    environment: production
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+    notifications.argoproj.io/subscribe.on-sync-succeeded.slack: deployment-notifications
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: deployment-notifications
+    notifications.argoproj.io/subscribe.on-health-degraded.slack: deployment-notifications
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: system-management
+  source:
+    repoURL: https://github.com/your-org/k8s-manifests.git
+    targetRevision: main
+    path: system-management-service/overlays/production
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: system-management-prod
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: false  # Disable for production safety
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 10m
+  revisionHistoryLimit: 20
+  ignoreDifferences:
+  - group: apps
+    kind: Deployment
+    jsonPointers:
+    - /spec/replicas
+  - group: autoscaling
+    kind: HorizontalPodAutoscaler
+    jsonPointers:
+    - /status
+  - group: ""
+    kind: Secret
+    jsonPointers:
+    - /data
+  - group: ""
+    kind: Service
+    jsonPointers:
+    - /spec/clusterIP
+  info:
+  - name: 'Environment'
+    value: 'Production'
+  - name: 'Owner'
+    value: 'Platform Team'
+  - name: 'Slack Channel'
+    value: '#system-management-alerts'

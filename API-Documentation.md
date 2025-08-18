@@ -6,6 +6,11 @@ API Bridge System Management Service는 외부 API 모니터링, 헬스체크, �
 
 **Base URL**: `http://localhost:8080/api/v1`
 
+## ⚠️ 중요 사항
+- 많은 엔드포인트가 **POST** 메서드를 사용합니다
+- **GET** 메서드로 호출하면 405 Method Not Allowed 오류가 발생합니다
+- 올바른 HTTP 메서드를 사용해야 합니다
+
 ## 목차
 
 1. [시스템 헬스체크](#1-시스템-헬스체크)
@@ -591,24 +596,50 @@ Prometheus Alertmanager 연동 및 알림 처리 API
 | severity | String | No | warning | 테스트 알림 타입 (error, warning, info) |
 | message | String | No | 시스템 테스트 알림입니다 | 테스트 메시지 |
 
+#### 요청 예시
+```bash
+curl -X POST "http://localhost:8080/api/v1/alerts/test?severity=warning&message=test"
+```
+
+#### 응답
+```json
+{
+  "success": true,
+  "message": "테스트 알림이 발송되었습니다",
+  "data": {
+    "success": true,
+    "message": "Alert notification processed successfully",
+    "alertId": "test-alert-1755064290788",
+    "processedAt": "2025-08-13T14:51:30.790297",
+    "notificationChannels": ["email"],
+    "recipientCount": 3,
+    "processingTimeMs": null,
+    "errorDetails": null,
+    "retryRequested": false
+  },
+  "timestamp": "2025-08-13T14:51:30.790376"
+}
+```
+
 ### 6.3 알림 상태 확인
 
 **GET** `/alerts/status`
 
+#### 응답
 ```json
 {
   "success": true,
   "message": "알림 시스템 상태 조회 성공",
   "data": {
-    "alertingEnabled": true,
-    "emailEnabled": true,
     "slackEnabled": false,
     "teamsEnabled": false,
-    "lastHealthCheck": "2025-08-13T14:17:24.422612",
+    "alertingEnabled": true,
+    "supportedChannels": ["email"],
+    "emailEnabled": true,
     "supportedSeverities": ["critical", "warning", "info"],
-    "supportedChannels": ["email"]
+    "lastHealthCheck": "2025-08-13T14:51:36.647159"
   },
-  "timestamp": "2025-08-13T14:17:24.422612"
+  "timestamp": "2025-08-13T14:51:36.647185"
 }
 ```
 
@@ -720,5 +751,70 @@ Spring Boot Actuator를 통해 제공되는 모니터링 엔드포인트
 
 ---
 
+## 12. 빠른 테스트 가이드
+
+### 동작하는 주요 엔드포인트들
+
+```bash
+# 시스템 헬스체크 
+curl http://localhost:8080/api/v1/health
+
+# 대시보드 헬스체크
+curl http://localhost:8080/api/v1/dashboard/health
+
+# 대시보드 분석 데이터
+curl http://localhost:8080/api/v1/dashboard/analytics
+
+# 서킷브레이커 상태 조회
+curl http://localhost:8080/api/v1/circuit-breaker/status
+
+# 서킷브레이커 설정 조회  
+curl http://localhost:8080/api/v1/circuit-breaker/config
+
+# 헬스체크 실행 (POST 메서드 필수!)
+curl -X POST http://localhost:8080/api/v1/health-check/run
+
+# 알림 테스트 (POST 메서드 필수!)
+curl -X POST "http://localhost:8080/api/v1/alerts/test?severity=warning&message=test"
+
+# 알림 상태 확인
+curl http://localhost:8080/api/v1/alerts/status
+
+# Actuator 메트릭 목록
+curl http://localhost:8080/api/v1/actuator/metrics
+
+# Actuator 헬스체크
+curl http://localhost:8080/api/v1/actuator/health
+```
+
+### 주의사항
+
+1. **POST 메서드가 필요한 엔드포인트들**:
+   - `/health-check/run`
+   - `/alerts/test`
+   - `/alerts/webhook`
+   - `/circuit-breaker/control`
+   - `/circuit-breaker/reset-all`
+   - `/circuit-breaker/monitor/trigger`
+
+2. **GET 메서드로 호출 시 405 오류 발생**:
+   ```json
+   {
+     "status": 405,
+     "error": "Method Not Allowed",
+     "message": "Request method 'GET' is not supported"
+   }
+   ```
+
+3. **올바른 Content-Type 헤더 필요** (POST 요청 시):
+   ```bash
+   curl -X POST -H "Content-Type: application/json" \
+        -d '{"key": "value"}' \
+        http://localhost:8080/api/v1/endpoint
+   ```
+
+---
+
 *본 문서는 API Bridge System Management Service v1.0을 기준으로 작성되었습니다.*
 *최종 업데이트: 2025-08-13*
+*실제 테스트 기반으로 검증된 API 명세서입니다.*

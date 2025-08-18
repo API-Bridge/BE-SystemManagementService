@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: system-management-service-staging
+
+namespace: system-management-staging
+
+resources:
+- ../../base
+
+commonLabels:
+  environment: staging
+
+patchesStrategicMerge:
+- deployment-patch.yaml
+- configmap-patch.yaml
+
+images:
+- name: your-docker-registry.com/system-management-service
+  newTag: staging-latest
+
+replicas:
+- name: system-management-service
+  count: 1

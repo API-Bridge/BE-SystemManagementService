@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: system-management-service
+  labels:
+    app: system-management-service
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "http"
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+  selector:
+    app: system-management-service

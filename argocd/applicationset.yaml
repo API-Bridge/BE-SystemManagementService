@@ -1,0 +1,85 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: system-management-service
+  namespace: argocd
+  labels:
+    app: system-management-service
+spec:
+  generators:
+  - list:
+      elements:
+      - environment: staging
+        namespace: system-management-staging
+        replicaCount: "1"
+        resources: |
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
+        autoSync: "true"
+        selfHeal: "true"
+      - environment: production
+        namespace: system-management-prod
+        replicaCount: "3"
+        resources: |
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        autoSync: "true"
+        selfHeal: "false"
+  template:
+    metadata:
+      name: 'system-management-service-{{environment}}'
+      labels:
+        app: system-management-service
+        environment: '{{environment}}'
+      annotations:
+        argocd.argoproj.io/sync-wave: '{{if eq .environment "staging"}}10{{else}}20{{end}}'
+        notifications.argoproj.io/subscribe.on-sync-succeeded.slack: deployment-notifications
+        notifications.argoproj.io/subscribe.on-sync-failed.slack: deployment-notifications
+    spec:
+      project: system-management
+      source:
+        repoURL: https://github.com/your-org/k8s-manifests.git
+        targetRevision: main
+        path: 'system-management-service/overlays/{{environment}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{namespace}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: '{{selfHeal}}'
+          allowEmpty: false
+        syncOptions:
+        - CreateNamespace=true
+        - PrunePropagationPolicy=foreground
+        - PruneLast=true
+        - ApplyOutOfSyncOnly=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m
+      revisionHistoryLimit: 10
+      ignoreDifferences:
+      - group: apps
+        kind: Deployment
+        jsonPointers:
+        - /spec/replicas
+      - group: ""
+        kind: Secret
+        jsonPointers:
+        - /data
+      info:
+      - name: 'Environment'
+        value: '{{environment}}'
+      - name: 'Namespace'
+        value: '{{namespace}}'

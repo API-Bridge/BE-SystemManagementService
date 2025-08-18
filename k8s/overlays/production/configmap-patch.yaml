@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  # Production-optimized configuration
+  app.health-check.interval: "300"
+  app.circuit-breaker.failure-rate-threshold: "50"
+  app.circuit-breaker.wait-duration-in-open-state: "300"
+  
+  # Production logging levels
+  logging.level.org.example.SystemManagementSvc: "INFO"
+  logging.level.org.springframework: "WARN"
+  logging.level.org.elasticsearch: "ERROR"
+  logging.level.org.apache.kafka: "WARN"
+  
+  # Production database connections
+  redis.host: "redis-prod-service"
+  kafka.bootstrap-servers: "kafka-prod-cluster:9092"
+  elasticsearch.hosts: "elasticsearch-prod-cluster:9200"
+  
+  # Enhanced monitoring for production
+  management.metrics.export.prometheus.enabled: "true"
+  management.metrics.distribution.percentiles-histogram.http.server.requests: "true"
+  management.metrics.tags.application: "system-management-service"
+  management.metrics.tags.environment: "production"

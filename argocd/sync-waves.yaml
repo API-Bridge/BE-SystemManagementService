@@ -1,0 +1,60 @@
+# Sync Wave Configuration for Ordered Deployment
+
+# Wave 0: Infrastructure Components
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sync-wave-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  description: |
+    Sync Wave Configuration for System Management Service
+    
+    Wave 0: Infrastructure (Namespaces, Secrets, ConfigMaps)
+    Wave 5: RBAC (ServiceAccounts, Roles, RoleBindings)
+    Wave 10: Staging Environment
+    Wave 15: Database Migrations (if needed)
+    Wave 20: Production Environment
+    Wave 25: Monitoring and Alerting
+    
+  waves: |
+    0: infrastructure
+    5: rbac
+    10: staging
+    15: migrations
+    20: production
+    25: monitoring
+
+---
+# Health Check Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: health-check-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  health.lua: |
+    hs = {}
+    if obj.status ~= nil then
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.type == "Ready" and condition.status == "False" then
+            hs.status = "Degraded"
+            hs.message = condition.message
+            return hs
+          end
+          if condition.type == "Ready" and condition.status == "True" then
+            hs.status = "Healthy"
+            hs.message = "Application is ready"
+            return hs
+          end
+        end
+      end
+    end
+    hs.status = "Progressing"
+    hs.message = "Waiting for application to be ready"
+    return hs

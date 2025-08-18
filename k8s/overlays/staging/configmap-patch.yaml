@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  # Staging-specific configuration
+  app.health-check.interval: "60"
+  app.circuit-breaker.failure-rate-threshold: "30"
+  app.circuit-breaker.wait-duration-in-open-state: "60"
+  
+  # More verbose logging for staging
+  logging.level.org.example.SystemManagementSvc: "DEBUG"
+  logging.level.org.springframework.web: "DEBUG"
+  
+  # Staging database
+  redis.host: "redis-staging-service"
+  kafka.bootstrap-servers: "kafka-staging-service:9092"
+  elasticsearch.hosts: "elasticsearch-staging-service:9200"

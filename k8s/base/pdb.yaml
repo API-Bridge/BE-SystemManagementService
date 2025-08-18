@@ -1,0 +1,11 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: system-management-service-pdb
+  labels:
+    app: system-management-service
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: system-management-service
