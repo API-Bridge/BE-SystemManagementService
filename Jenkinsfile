@@ -2,11 +2,12 @@ pipeline {
     agent any
     
     environment {
-        REGISTRY = 'your-docker-registry.com'
-        IMAGE_NAME = 'system-management-service'
-        ARGOCD_REPO = 'https://github.com/your-org/k8s-manifests.git'
-        ARGOCD_REPO_BRANCH = 'main'
-        KUBERNETES_NAMESPACE = 'system-management'
+        ECR_REGISTRY = "123456789012.dkr.ecr.ap-northeast-2.amazonaws.com"
+        ECR_REPOSITORY = "system-management-service"
+        IMAGE_NAME = "system-management-service"
+        CHART_REPO_URL = "https://github.com/your-org/helm-charts.git"
+        CHART_REPO_CREDENTIALS_ID = "github-credentials"
+        AWS_REGION = "ap-northeast-2"
     }
     
     tools {
@@ -23,8 +24,8 @@ pipeline {
                         script: 'git rev-parse --short HEAD',
                         returnStdout: true
                     ).trim()
-                    env.BUILD_TAG = "${env.BUILD_NUMBER}-${env.GIT_COMMIT_SHORT}"
-                    env.IMAGE_TAG = "${env.REGISTRY}/${env.IMAGE_NAME}:${env.BUILD_TAG}"
+                    env.IMAGE_TAG = "${env.GIT_COMMIT_SHORT}"
+                    env.FULL_IMAGE_NAME = "${env.ECR_REGISTRY}/${env.ECR_REPOSITORY}:${env.IMAGE_TAG}"
                 }
             }
         }
@@ -108,8 +109,8 @@ pipeline {
             }
             steps {
                 script {
-                    def image = docker.build("${env.IMAGE_TAG}")
-                    echo "Built Docker image: ${env.IMAGE_TAG}"
+                    sh "docker build -t ${env.FULL_IMAGE_NAME} ."
+                    echo "Built Docker image: ${env.FULL_IMAGE_NAME}"
                 }
             }
         }
@@ -130,13 +131,13 @@ pipeline {
                             --exit-code 1 \
                             --severity HIGH,CRITICAL \
                             --format table \
-                            ${env.IMAGE_TAG}
+                            ${env.FULL_IMAGE_NAME}
                     """
                 }
             }
         }
         
-        stage('Push to Registry') {
+        stage('Push to ECR') {
             when {
                 anyOf {
                     branch 'main'
@@ -145,39 +146,45 @@ pipeline {
             }
             steps {
                 script {
-                    docker.withRegistry("https://${env.REGISTRY}", 'docker-registry-credentials') {
-                        docker.image("${env.IMAGE_TAG}").push()
-                        docker.image("${env.IMAGE_TAG}").push('latest')
-                        echo "Pushed image to registry: ${env.IMAGE_TAG}"
+                    withAWS(region: env.AWS_REGION) {
+                        def ecrLogin = ecrLogin()
+                        sh "docker login -u ${ecrLogin.user} -p ${ecrLogin.password} https://${ecrLogin.endpoint}"
+                        sh "docker push ${env.FULL_IMAGE_NAME}"
+                        echo "Pushed image to ECR: ${env.FULL_IMAGE_NAME}"
                     }
                 }
             }
         }
         
-        stage('Update ArgoCD Manifests') {
+        stage('Update Helm Chart') {
             when {
                 branch 'main'
             }
             steps {
                 script {
-                    withCredentials([usernamePassword(credentialsId: 'git-credentials', 
+                    withCredentials([usernamePassword(credentialsId: env.CHART_REPO_CREDENTIALS_ID, 
                                                    usernameVariable: 'GIT_USERNAME', 
                                                    passwordVariable: 'GIT_PASSWORD')]) {
-                        sh """
-                            git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@${env.ARGOCD_REPO.replace('https://', '')} argocd-repo
-                            cd argocd-repo
+                        dir('helm-charts') {
+                            git credentialsId: env.CHART_REPO_CREDENTIALS_ID, url: env.CHART_REPO_URL
                             
-                            # Update image tag in Kustomization or deployment manifest
-                            sed -i 's|${env.REGISTRY}/${env.IMAGE_NAME}:.*|${env.IMAGE_TAG}|g' \
-                                overlays/production/kustomization.yaml
+                            sh "yq e '.image.tag = \"${env.IMAGE_TAG}\"' -i ./charts/system-management-service/values.yaml"
                             
-                            # Commit and push changes
-                            git config user.name "Jenkins CI"
-                            git config user.email "jenkins@your-company.com"
-                            git add .
-                            git commit -m "Update ${env.IMAGE_NAME} image to ${env.BUILD_TAG}"
-                            git push origin ${env.ARGOCD_REPO_BRANCH}
-                        """
+                            def newChartVersion = sh(
+                                returnStdout: true, 
+                                script: "yq e '.version = (.version | semver | bump_patch) | .version' ./charts/system-management-service/Chart.yaml"
+                            ).trim()
+                            
+                            sh "yq e '.version = \"${newChartVersion}\"' -i ./charts/system-management-service/Chart.yaml"
+                            
+                            sh """
+                                git config user.email 'jenkins@example.com'
+                                git config user.name 'Jenkins CI'
+                                git add .
+                                git commit -m 'Update system-management-service to ${env.IMAGE_TAG} (Chart v${newChartVersion})'
+                                git push origin main
+                            """
+                        }
                     }
                 }
             }
@@ -189,23 +196,22 @@ pipeline {
             }
             steps {
                 script {
-                    withCredentials([usernamePassword(credentialsId: 'git-credentials', 
+                    withCredentials([usernamePassword(credentialsId: env.CHART_REPO_CREDENTIALS_ID, 
                                                    usernameVariable: 'GIT_USERNAME', 
                                                    passwordVariable: 'GIT_PASSWORD')]) {
-                        sh """
-                            git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@${env.ARGOCD_REPO.replace('https://', '')} argocd-repo
-                            cd argocd-repo
+                        dir('helm-charts') {
+                            git credentialsId: env.CHART_REPO_CREDENTIALS_ID, url: env.CHART_REPO_URL
                             
-                            # Update staging environment
-                            sed -i 's|${env.REGISTRY}/${env.IMAGE_NAME}:.*|${env.IMAGE_TAG}|g' \
-                                overlays/staging/kustomization.yaml
+                            sh "yq e '.image.tag = \"${env.IMAGE_TAG}\"' -i ./charts/system-management-service/values-staging.yaml"
                             
-                            git config user.name "Jenkins CI"
-                            git config user.email "jenkins@your-company.com"
-                            git add .
-                            git commit -m "Deploy ${env.IMAGE_NAME} to staging: ${env.BUILD_TAG}"
-                            git push origin ${env.ARGOCD_REPO_BRANCH}
-                        """
+                            sh """
+                                git config user.email 'jenkins@example.com'
+                                git config user.name 'Jenkins CI'
+                                git add .
+                                git commit -m 'Deploy system-management-service to staging: ${env.IMAGE_TAG}'
+                                git push origin main
+                            """
+                        }
                     }
                 }
             }
@@ -251,7 +257,7 @@ pipeline {
                 **Branch:** ${env.BRANCH_NAME}
                 **Build:** #${env.BUILD_NUMBER}
                 **Commit:** ${env.GIT_COMMIT_SHORT}
-                **Image:** ${env.IMAGE_TAG}
+                **Image:** ${env.FULL_IMAGE_NAME}
                 
                 **Build URL:** ${env.BUILD_URL}
                 """

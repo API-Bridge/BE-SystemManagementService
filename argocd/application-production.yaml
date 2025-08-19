@@ -16,9 +16,23 @@ metadata:
 spec:
   project: system-management
   source:
-    repoURL: https://github.com/your-org/k8s-manifests.git
+    repoURL: https://github.com/your-org/helm-charts.git
     targetRevision: main
-    path: system-management-service/overlays/production
+    path: charts/system-management-service
+    helm:
+      valueFiles:
+        - values.yaml
+      parameters:
+        - name: image.tag
+          value: "latest"
+        - name: replicaCount
+          value: "3"
+        - name: autoscaling.enabled
+          value: "true"
+        - name: ingress.enabled
+          value: "true"
+        - name: ingress.hosts[0].host
+          value: "api.system-management.com"
   destination:
     server: https://kubernetes.default.svc
     namespace: system-management-prod

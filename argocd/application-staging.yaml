@@ -13,9 +13,15 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/your-org/k8s-manifests.git
+    repoURL: https://github.com/your-org/helm-charts.git
     targetRevision: main
-    path: system-management-service/overlays/staging
+    path: charts/system-management-service
+    helm:
+      valueFiles:
+        - values-staging.yaml
+      parameters:
+        - name: image.tag
+          value: "develop"
   destination:
     server: https://kubernetes.default.svc
     namespace: system-management-staging
@@ -54,7 +60,7 @@ metadata:
 spec:
   description: System Management Service Project
   sourceRepos:
-  - 'https://github.com/your-org/k8s-manifests.git'
+  - 'https://github.com/your-org/helm-charts.git'
   destinations:
   - namespace: 'system-management-*'
     server: https://kubernetes.default.svc

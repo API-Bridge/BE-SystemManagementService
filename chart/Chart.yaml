@@ -1,0 +1,17 @@
+apiVersion: v2
+name: system-management-service
+description: A Helm chart for System Management Service
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+home: https://github.com/your-org/system-management-service
+sources:
+  - https://github.com/your-org/system-management-service
+maintainers:
+  - name: DevOps Team
+    email: devops@your-company.com
+keywords:
+  - microservice
+  - spring-boot
+  - health-check
+  - monitoring

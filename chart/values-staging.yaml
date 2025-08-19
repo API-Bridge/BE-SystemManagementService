@@ -1,0 +1,54 @@
+# Staging environment values for system-management-service
+replicaCount: 1
+
+image:
+  repository: 123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/system-management-service
+  pullPolicy: Always
+  tag: "develop"
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+autoscaling:
+  enabled: false
+
+env:
+  - name: SPRING_PROFILES_ACTIVE
+    value: "staging"
+  - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+    value: "health,info,prometheus,beans,env"
+  - name: MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS
+    value: "always"
+  - name: LOGGING_LEVEL_ORG_EXAMPLE
+    value: "DEBUG"
+
+configMap:
+  enabled: true
+  data:
+    application.yml: |
+      spring:
+        application:
+          name: system-management-service
+        datasource:
+          url: jdbc:postgresql://postgres-staging:5432/system_management_staging
+          username: ${DB_USERNAME:postgres}
+          password: ${DB_PASSWORD:password}
+        jpa:
+          hibernate:
+            ddl-auto: update
+          show-sql: true
+        redis:
+          host: redis-staging
+          port: 6379
+        kafka:
+          bootstrap-servers: kafka-staging:9092
+          consumer:
+            group-id: system-management-staging-group
+
+podDisruptionBudget:
+  enabled: false

@@ -1,0 +1,155 @@
+# Default values for system-management-service
+replicaCount: 2
+
+image:
+  repository: 123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/system-management-service
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
+  prometheus.io/path: "/actuator/prometheus"
+
+podLabels: {}
+
+podSecurityContext:
+  fsGroup: 2000
+
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 8080
+  targetPort: 8080
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: system-management.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+livenessProbe:
+  httpGet:
+    path: /actuator/health/liveness
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /actuator/health/readiness
+    port: http
+  initialDelaySeconds: 15
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+volumes:
+  - name: tmp
+    emptyDir: {}
+  - name: var-cache-nginx
+    emptyDir: {}
+
+volumeMounts:
+  - name: tmp
+    mountPath: /tmp
+  - name: var-cache-nginx
+    mountPath: /var/cache/nginx
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+env:
+  - name: SPRING_PROFILES_ACTIVE
+    value: "production"
+  - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+    value: "health,info,prometheus"
+  - name: MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS
+    value: "always"
+
+configMap:
+  enabled: true
+  data:
+    application.yml: |
+      spring:
+        application:
+          name: system-management-service
+        datasource:
+          url: jdbc:postgresql://postgres:5432/system_management
+          username: ${DB_USERNAME:postgres}
+          password: ${DB_PASSWORD:password}
+        jpa:
+          hibernate:
+            ddl-auto: validate
+          show-sql: false
+        redis:
+          host: redis
+          port: 6379
+        kafka:
+          bootstrap-servers: kafka:9092
+          consumer:
+            group-id: system-management-group
+
+secret:
+  enabled: true
+  data:
+    DB_USERNAME: cG9zdGdyZXM=  # base64 encoded 'postgres'
+    DB_PASSWORD: cGFzc3dvcmQ=  # base64 encoded 'password'
+    JWT_SECRET: c3VwZXItc2VjcmV0LWp3dC1rZXk=  # base64 encoded 'super-secret-jwt-key'
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+networkPolicy:
+  enabled: false
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080

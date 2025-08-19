@@ -3,20 +3,20 @@
 version: '3.8'
 
 services:
-  # 로컬 개발을 위한 최소한의 외부 의존성들
-  mysql:
-    image: mysql:8.0
+  # PostgreSQL 데이터베이스 (프로덕션과 동일한 DB 사용)
+  postgres:
+    image: postgres:15-alpine
     ports:
-      - "3306:3306"
+      - "5432:5432"
     environment:
-      MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: systemmanagementsvc
-      MYSQL_USER: app
-      MYSQL_PASSWORD: password
+      POSTGRES_DB: system_management
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -54,9 +54,35 @@ services:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
 
+  # 모니터링 도구들 (선택사항)
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+
 volumes:
-  mysql_data:
+  postgres_data:
   redis_data:
+  grafana_data:
 
 # 사용법:
 # 로컬 개발: docker-compose -f docker-compose.local.yml up -d
