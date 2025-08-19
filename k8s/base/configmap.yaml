@@ -11,7 +11,9 @@ data:
   
   # Kafka Configuration
   kafka.bootstrap-servers: "kafka-service:9092"
-  
+
+
+  ###TODO: AWS SES 연동 후 이메일 연동하기
   # AWS Configuration
   aws.ses.region: "ap-northeast-2"
   aws.ses.from-email: "noreply@your-company.com"
