@@ -141,29 +141,44 @@ services:
     networks:
       - app-network
 
-  # 로그 수집: Elasticsearch (선택사항)
+  # 로그 수집: Elasticsearch (7.x 버전으로 변경 - 더 안정적)
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.0
     ports:
       - "9200:9200"
+      - "9300:9300"
     environment:
       - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "ES_JAVA_OPTS=-Xms256m -Xmx256m"
+      - network.host=0.0.0.0
+      - http.cors.enabled=true
+      - http.cors.allow-origin="*"
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     networks:
       - app-network
 
-  # 로그 시각화: Kibana (선택사항)
+  # 로그 시각화: Kibana (7.x 버전으로 변경)
   kibana:
-    image: docker.elastic.co/kibana/kibana:8.8.0
+    image: docker.elastic.co/kibana/kibana:7.17.0
     ports:
       - "5601:5601"
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_PUBLICBASEURL=http://localhost:5601
     depends_on:
-      - elasticsearch
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     networks:
       - app-network
 
